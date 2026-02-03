@@ -3,45 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Fixer (Code Only)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <title>AI Smart Code Merger</title>
     
     <style>
         body {
-            font-family: 'Courier New', monospace;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
             padding: 20px;
             margin: 0;
         }
-        h2 { color: #28a745; text-align: center; }
+        h2 { color: #00ff88; text-align: center; margin-bottom: 5px; }
+        p { text-align: center; color: #888; font-size: 12px; margin-bottom: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
         
-        /* Upload Box */
-        .file-upload-wrapper {
-            background-color: #2d2d2d;
-            border: 2px dashed #3e3e3e;
-            padding: 20px;
-            text-align: center;
-            border-radius: 5px;
+        /* Sections */
+        .box {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
             margin-bottom: 15px;
-            cursor: pointer;
         }
-        input[type="file"] { display: none; }
-        .custom-file-upload {
-            display: inline-block;
-            padding: 6px 12px;
-            cursor: pointer;
-            color: #28a745;
-            font-weight: bold;
+        .label { color: #00d2ff; font-weight: bold; font-size: 14px; display: block; margin-bottom: 8px; }
+        
+        /* File Upload */
+        input[type="file"] {
+            background: #252526;
+            color: #fff;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px dashed #555;
+            box-sizing: border-box;
         }
 
+        /* Text Area for New Code */
         textarea {
             width: 100%;
-            height: 150px;
+            height: 120px;
             background-color: #252526;
-            color: #fff;
-            border: 1px solid #3e3e3e;
+            color: #a9ff99; /* Greenish for new code */
+            border: 1px solid #333;
             padding: 10px;
             border-radius: 5px;
             font-family: monospace;
@@ -49,59 +52,54 @@
             box-sizing: border-box; 
         }
         
-        /* Buttons Styling */
-        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
-        
+        /* Merge Button */
         button {
-            flex: 1;
-            padding: 12px;
+            width: 100%;
+            padding: 14px;
             border: none;
             border-radius: 5px;
             font-size: 16px;
             cursor: pointer;
             font-weight: bold;
-            color: white;
+            color: #000;
+            background: linear-gradient(45deg, #00ff88, #00d2ff);
+            transition: 0.3s;
         }
-        .btn-analyze { background-color: #0e639c; }
-        
-        /* Download button styled prominently */
-        .btn-download { background-color: #28a745; display: none; } 
-        .btn-copy { background-color: #ffc107; color: #000; display: none; }
+        button:hover { opacity: 0.9; transform: scale(0.99); }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; }
 
-        .output-box {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #252526;
-            border-left: 5px solid #28a745;
-            display: none;
+        /* Output Section */
+        .output-area { display: none; margin-top: 20px; }
+        .download-btn {
+            background: #ffc107;
+            color: #000;
+            margin-top: 10px;
         }
-        pre { white-space: pre-wrap; margin: 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🤖 Auto Code Fixer</h2>
+    <h2>⚡ AI Smart Code Merger</h2>
+    <p>Upload old file + Paste new part = Full Updated File</p>
     
-    <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
-        <label for="fileInput" class="custom-file-upload">
-            📂 Upload File / ZIP
-        </label>
-        <div style="font-size: 12px; color: #888;">Supports: .zip, .js, .py, .html, .css</div>
-        <input type="file" id="fileInput" accept=".zip,.js,.py,.html,.css,.txt,.json">
+    <div class="box">
+        <span class="label">Step 1: Upload Main File (script.js / index.html)</span>
+        <input type="file" id="mainFile" accept=".js,.html,.css,.txt">
     </div>
 
-    <textarea id="codeInput" placeholder="Code preview will appear here..."></textarea>
+    <div class="box">
+        <span class="label">Step 2: Paste New Code / Instruction</span>
+        <textarea id="newSnippet" placeholder="Example: 'Add this startDeepScan function at the bottom' or paste the code directly..."></textarea>
+    </div>
     
-    <button onclick="fixCode()" class="btn-analyze" id="analyzeBtn">Fix My Code</button>
+    <button onclick="mergeCode()" id="mergeBtn">🔄 MERGE & UPDATE FILE</button>
 
-    <div id="resultArea" class="output-box">
-        <span style="font-weight:bold; color:#28a745">✅ Fixed Code:</span>
-        <pre id="outputText">Waiting for AI...</pre>
-        
-        <div class="btn-group">
-            <button onclick="copyToClipboard()" class="btn-copy" id="copyBtn">📋 Copy Code</button>
-            <button onclick="downloadCode()" class="btn-download" id="dlBtn">⬇️ Download Fixed Script</button>
+    <div id="resultArea" class="output-area">
+        <div class="box" style="border-color: #00ff88;">
+            <span class="label">✅ Merge Successful!</span>
+            <pre id="statusText" style="white-space: pre-wrap; color: #ccc; font-size: 12px;">Processing...</pre>
+            <button onclick="downloadFixedFile()" class="download-btn">⬇️ Download Updated File</button>
         </div>
     </div>
 </div>
@@ -111,101 +109,86 @@
     import { API_KEY } from './api.js';
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    // Using Gemini 2.0 Flash for speed and intelligence
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // --- 1. FILE HANDLING ---
-    document.getElementById('fileInput').addEventListener('change', async function(event) {
+    let mainFileContent = "";
+    let fileName = "updated_script.js";
+
+    // Read Uploaded File
+    document.getElementById('mainFile').addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
-
-        const textArea = document.getElementById('codeInput');
-        textArea.value = "Reading file... please wait.";
-
-        if (file.name.endsWith('.zip')) {
-            try {
-                const zip = new JSZip();
-                const content = await zip.loadAsync(file);
-                let combinedCode = `/* PROJECT: ${file.name} */\n\n`;
-                for (let filename in content.files) {
-                    const zipFile = content.files[filename];
-                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4)$/i)) {
-                        const fileText = await zipFile.async("string");
-                        combinedCode += `/* --- START FILE: ${filename} --- */\n${fileText}\n/* --- END FILE: ${filename} --- */\n\n`;
-                    }
-                }
-                textArea.value = combinedCode;
-            } catch (e) { alert("Error reading ZIP: " + e.message); }
-        } else {
-            const reader = new FileReader();
-            reader.onload = function(e) { textArea.value = e.target.result; };
-            reader.readAsText(file);
-        }
+        fileName = "updated_" + file.name;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            mainFileContent = e.target.result;
+            document.getElementById('statusText').innerText = `Loaded: ${file.name} (${mainFileContent.length} chars)`;
+        };
+        reader.readAsText(file);
     });
 
-    // --- 2. AI FIXING LOGIC (STRICT MODE) ---
-    window.fixCode = async function() {
-        const inputCode = document.getElementById("codeInput").value;
+    // AI Merge Logic
+    window.mergeCode = async function() {
+        const newSnippet = document.getElementById("newSnippet").value;
+        const statusText = document.getElementById("statusText");
         const resultArea = document.getElementById("resultArea");
-        const outputText = document.getElementById("outputText");
-        const btn = document.getElementById("analyzeBtn");
-        const dlBtn = document.getElementById("dlBtn");
-        const copyBtn = document.getElementById("copyBtn");
+        const btn = document.getElementById("mergeBtn");
 
-        if(!inputCode) { alert("Please upload code first!"); return; }
+        if(!mainFileContent) { alert("Please upload the main file first!"); return; }
+        if(!newSnippet) { alert("Please paste the new code or instruction!"); return; }
 
-        btn.innerText = "Fixing Code... (Wait)";
-        outputText.innerText = "Generating clean code...";
+        btn.innerText = "Merging... (Please Wait)";
+        btn.disabled = true;
         resultArea.style.display = "block";
-        dlBtn.style.display = "none";
-        copyBtn.style.display = "none";
+        statusText.innerText = "AI is finding the best place to insert your code...";
         
         try {
-            // This prompt forces AI to output ONLY code
-            const prompt = `You are a strict code repairing machine.
+            const prompt = `You are an expert Code Integrator.
             
-            YOUR TASK:
-            Fix all errors (security, logic, syntax) in the code below.
+            TASK:
+            I have a MAIN FILE and a NEW SNIPPET (or instruction).
+            Your job is to intelligently merge the NEW SNIPPET into the MAIN FILE.
             
             RULES:
-            1. Output ONLY the fixed code.
-            2. Do NOT write any explanations, comments, or intro text.
-            3. Do NOT use markdown code blocks (like \`\`\`). Just raw code.
-            4. If there are multiple files, keep the separator comments.
+            1. If the new snippet is a function, place it correctly (e.g., at the end or inside a specific class).
+            2. If it's a replacement (e.g., "fix button"), find the old code and replace it.
+            3. If it's HTML, put it in the correct tag structure.
+            4. Output ONLY the FULL, MERGED, READY-TO-USE CODE. No markdown, no text.
             
-            CODE TO FIX:
-            ${inputCode.substring(0, 40000)}`;
+            --- MAIN FILE START ---
+            ${mainFileContent}
+            --- MAIN FILE END ---
+            
+            --- NEW SNIPPET / INSTRUCTION START ---
+            ${newSnippet}
+            --- NEW SNIPPET / INSTRUCTION END ---
+            `;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
 
-            outputText.innerText = text;
-            
-            dlBtn.style.display = "block";
-            copyBtn.style.display = "block";
-            btn.innerText = "Fix Again";
+            // Save result globally for download
+            window.finalCode = text.replace(/```(javascript|html|css)?/g, "").replace(/```/g, "").trim();
+
+            statusText.innerText = "Done! The code has been merged and checked.";
+            btn.innerText = "Merge Again";
+            btn.disabled = false;
         } catch (error) {
-            outputText.innerText = "Error: " + error.toString();
-            btn.innerText = "Retry";
+            statusText.innerText = "Error: " + error.toString();
+            btn.disabled = false;
         }
     }
 
-    // --- 3. DOWNLOAD FUNCTION ---
-    window.downloadCode = function() {
-        const text = document.getElementById("outputText").innerText;
-        const blob = new Blob([text], { type: "text/plain" });
+    // Download Function
+    window.downloadFixedFile = function() {
+        if(!window.finalCode) return;
+        const blob = new Blob([window.finalCode], { type: "text/plain" });
         const anchor = document.createElement("a");
         anchor.href = URL.createObjectURL(blob);
-        anchor.download = "fixed_script.txt"; // Downloads as text file
+        anchor.download = fileName;
         anchor.click();
-    }
-
-    window.copyToClipboard = function() {
-        const text = document.getElementById("outputText").innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("Code copied!");
-        });
     }
 </script>
 
