@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Fixer & Reviewer</title>
+    <title>AI Code Fixer Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
@@ -17,7 +17,7 @@
         h2 { color: #61dafb; text-align: center; }
         .container { max-width: 800px; margin: 0 auto; }
         
-        /* File Upload Box Styling */
+        /* Upload Box */
         .file-upload-wrapper {
             background-color: #2d2d2d;
             border: 2px dashed #3e3e3e;
@@ -27,7 +27,6 @@
             margin-bottom: 15px;
             cursor: pointer;
         }
-        .file-upload-wrapper:hover { border-color: #61dafb; }
         input[type="file"] { display: none; }
         .custom-file-upload {
             display: inline-block;
@@ -39,30 +38,35 @@
 
         textarea {
             width: 100%;
-            height: 200px;
+            height: 150px;
             background-color: #252526;
             color: #fff;
             border: 1px solid #3e3e3e;
             padding: 10px;
             border-radius: 5px;
             font-family: monospace;
-            font-size: 14px;
+            font-size: 13px;
             box-sizing: border-box; 
         }
         
+        /* Buttons Styling */
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        
         button {
-            width: 100%;
+            flex: 1;
             padding: 12px;
-            background-color: #0e639c;
-            color: white;
             border: none;
             border-radius: 5px;
-            margin-top: 10px;
             font-size: 16px;
             cursor: pointer;
             font-weight: bold;
+            color: white;
         }
-        button:hover { background-color: #1177bb; }
+        .btn-analyze { background-color: #0e639c; }
+        .btn-analyze:hover { background-color: #1177bb; }
+        
+        .btn-download { background-color: #28a745; display: none; } /* Hidden initially */
+        .btn-copy { background-color: #ffc107; color: #000; display: none; }
 
         .output-box {
             margin-top: 20px;
@@ -77,24 +81,28 @@
 <body>
 
 <div class="container">
-    <h2>🛠️ AI Code Project Reviewer</h2>
+    <h2>🛠️ AI Code Fixer Pro</h2>
     
     <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
         <label for="fileInput" class="custom-file-upload">
-            📂 Click to Upload File or ZIP
+            📂 Upload File / ZIP
         </label>
         <div style="font-size: 12px; color: #888;">Supports: .zip, .js, .py, .html, .css</div>
         <input type="file" id="fileInput" accept=".zip,.js,.py,.html,.css,.txt,.json">
     </div>
 
-    <p>Code Preview (AI will read this):</p>
-    <textarea id="codeInput" placeholder="Upload a file or paste code here..."></textarea>
+    <textarea id="codeInput" placeholder="Code preview will appear here..."></textarea>
     
-    <button onclick="fixCode()">Analyze & Fix Code</button>
+    <button onclick="fixCode()" class="btn-analyze" id="analyzeBtn">Analyze & Fix Code</button>
 
     <div id="resultArea" class="output-box">
-        <span style="font-weight:bold; color:#ce9178">🔎 Analysis Result:</span>
+        <span style="font-weight:bold; color:#ce9178">🔎 Report & Fixes:</span>
         <pre id="outputText">Waiting for AI...</pre>
+        
+        <div class="btn-group">
+            <button onclick="copyToClipboard()" class="btn-copy" id="copyBtn">📋 Copy Report</button>
+            <button onclick="downloadReport()" class="btn-download" id="dlBtn">⬇️ Download as Text</button>
+        </div>
     </div>
 </div>
 
@@ -102,13 +110,11 @@
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
     import { API_KEY } from './api.js';
 
-    // --- AI CONFIGURATION ---
     const genAI = new GoogleGenerativeAI(API_KEY);
-    
-    // UPDATED: Using the model found in your list
+    // Using the powerful model we found
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // --- FILE HANDLING LOGIC ---
+    // --- 1. FILE HANDLING ---
     document.getElementById('fileInput').addEventListener('change', async function(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -121,69 +127,82 @@
                 const zip = new JSZip();
                 const content = await zip.loadAsync(file);
                 let combinedCode = `Project: ${file.name}\n\n`;
-
                 for (let filename in content.files) {
                     const zipFile = content.files[filename];
-                    // Skip folders and images
-                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4|eot|ttf|woff)$/i)) {
+                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4)$/i)) {
                         const fileText = await zipFile.async("string");
                         combinedCode += `--- FILE: ${filename} ---\n${fileText}\n\n`;
                     }
                 }
                 textArea.value = combinedCode;
-            } catch (e) {
-                alert("Error reading ZIP: " + e.message);
-            }
+            } catch (e) { alert("Error reading ZIP: " + e.message); }
         } else {
             const reader = new FileReader();
-            reader.onload = function(e) {
-                textArea.value = e.target.result;
-            };
+            reader.onload = function(e) { textArea.value = e.target.result; };
             reader.readAsText(file);
         }
     });
 
-    // --- AI ANALYSIS LOGIC ---
+    // --- 2. AI ANALYSIS ---
     window.fixCode = async function() {
         const inputCode = document.getElementById("codeInput").value;
         const resultArea = document.getElementById("resultArea");
         const outputText = document.getElementById("outputText");
-        const btn = document.querySelector("button");
+        const btn = document.getElementById("analyzeBtn");
+        const dlBtn = document.getElementById("dlBtn");
+        const copyBtn = document.getElementById("copyBtn");
 
-        if(!inputCode) {
-            alert("Code box is empty! Upload a file or write code.");
-            return;
-        }
+        if(!inputCode) { alert("Please upload code first!"); return; }
 
-        btn.innerText = "Analyzing Project...";
-        outputText.innerText = "Thinking (using Gemini 2.0)...";
+        btn.innerText = "Analyzing... (may take 10-20s)";
+        outputText.innerText = "Thinking...";
         resultArea.style.display = "block";
+        dlBtn.style.display = "none";
+        copyBtn.style.display = "none";
         
         try {
-            const prompt = `You are an expert Lead Developer. 
-            Review the following code/project files.
+            const prompt = `You are a Senior Developer. Review this code.
             
-            CODE CONTENT:
+            CODE:
             ${inputCode.substring(0, 30000)}
             
-            YOUR TASK:
-            1. Identify any critical errors or bugs.
-            2. Suggest improvements for better performance.
-            3. Provide corrected snippets for the most important parts.
-            
-            Keep the response structured and easy to read.`;
+            OUTPUT FORMAT:
+            1. 🔴 Critical Issues (Security/Bugs)
+            2. 🟢 Corrected Code Snippets (Ready to copy)
+            3. 💡 Suggestions
+            `;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
             const text = response.text();
 
             outputText.innerText = text;
+            
+            // Show Download & Copy Buttons after success
+            dlBtn.style.display = "block";
+            copyBtn.style.display = "block";
             btn.innerText = "Analyze Again";
         } catch (error) {
             outputText.innerText = "Error: " + error.toString();
-            console.error(error);
-            btn.innerText = "Retry Analysis";
+            btn.innerText = "Retry";
         }
+    }
+
+    // --- 3. DOWNLOAD & COPY FUNCTIONS ---
+    window.downloadReport = function() {
+        const text = document.getElementById("outputText").innerText;
+        const blob = new Blob([text], { type: "text/plain" });
+        const anchor = document.createElement("a");
+        anchor.href = URL.createObjectURL(blob);
+        anchor.download = "AI_Fix_Report.txt"; // File name
+        anchor.click();
+    }
+
+    window.copyToClipboard = function() {
+        const text = document.getElementById("outputText").innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Report copied to clipboard! Open Spck Editor and paste it.");
+        });
     }
 </script>
 
