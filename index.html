@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Fixer Pro</title>
+    <title>AI Code Fixer (Code Only)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
@@ -14,7 +14,7 @@
             padding: 20px;
             margin: 0;
         }
-        h2 { color: #61dafb; text-align: center; }
+        h2 { color: #28a745; text-align: center; }
         .container { max-width: 800px; margin: 0 auto; }
         
         /* Upload Box */
@@ -32,7 +32,7 @@
             display: inline-block;
             padding: 6px 12px;
             cursor: pointer;
-            color: #61dafb;
+            color: #28a745;
             font-weight: bold;
         }
 
@@ -63,16 +63,16 @@
             color: white;
         }
         .btn-analyze { background-color: #0e639c; }
-        .btn-analyze:hover { background-color: #1177bb; }
         
-        .btn-download { background-color: #28a745; display: none; } /* Hidden initially */
+        /* Download button styled prominently */
+        .btn-download { background-color: #28a745; display: none; } 
         .btn-copy { background-color: #ffc107; color: #000; display: none; }
 
         .output-box {
             margin-top: 20px;
             padding: 15px;
             background-color: #252526;
-            border-left: 5px solid #61dafb;
+            border-left: 5px solid #28a745;
             display: none;
         }
         pre { white-space: pre-wrap; margin: 0; }
@@ -81,7 +81,7 @@
 <body>
 
 <div class="container">
-    <h2>🛠️ AI Code Fixer Pro</h2>
+    <h2>🤖 Auto Code Fixer</h2>
     
     <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
         <label for="fileInput" class="custom-file-upload">
@@ -93,15 +93,15 @@
 
     <textarea id="codeInput" placeholder="Code preview will appear here..."></textarea>
     
-    <button onclick="fixCode()" class="btn-analyze" id="analyzeBtn">Analyze & Fix Code</button>
+    <button onclick="fixCode()" class="btn-analyze" id="analyzeBtn">Fix My Code</button>
 
     <div id="resultArea" class="output-box">
-        <span style="font-weight:bold; color:#ce9178">🔎 Report & Fixes:</span>
+        <span style="font-weight:bold; color:#28a745">✅ Fixed Code:</span>
         <pre id="outputText">Waiting for AI...</pre>
         
         <div class="btn-group">
-            <button onclick="copyToClipboard()" class="btn-copy" id="copyBtn">📋 Copy Report</button>
-            <button onclick="downloadReport()" class="btn-download" id="dlBtn">⬇️ Download as Text</button>
+            <button onclick="copyToClipboard()" class="btn-copy" id="copyBtn">📋 Copy Code</button>
+            <button onclick="downloadCode()" class="btn-download" id="dlBtn">⬇️ Download Fixed Script</button>
         </div>
     </div>
 </div>
@@ -111,7 +111,7 @@
     import { API_KEY } from './api.js';
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    // Using the powerful model we found
+    // Using Gemini 2.0 Flash for speed and intelligence
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // --- 1. FILE HANDLING ---
@@ -126,12 +126,12 @@
             try {
                 const zip = new JSZip();
                 const content = await zip.loadAsync(file);
-                let combinedCode = `Project: ${file.name}\n\n`;
+                let combinedCode = `/* PROJECT: ${file.name} */\n\n`;
                 for (let filename in content.files) {
                     const zipFile = content.files[filename];
                     if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4)$/i)) {
                         const fileText = await zipFile.async("string");
-                        combinedCode += `--- FILE: ${filename} ---\n${fileText}\n\n`;
+                        combinedCode += `/* --- START FILE: ${filename} --- */\n${fileText}\n/* --- END FILE: ${filename} --- */\n\n`;
                     }
                 }
                 textArea.value = combinedCode;
@@ -143,7 +143,7 @@
         }
     });
 
-    // --- 2. AI ANALYSIS ---
+    // --- 2. AI FIXING LOGIC (STRICT MODE) ---
     window.fixCode = async function() {
         const inputCode = document.getElementById("codeInput").value;
         const resultArea = document.getElementById("resultArea");
@@ -154,23 +154,27 @@
 
         if(!inputCode) { alert("Please upload code first!"); return; }
 
-        btn.innerText = "Analyzing... (may take 10-20s)";
-        outputText.innerText = "Thinking...";
+        btn.innerText = "Fixing Code... (Wait)";
+        outputText.innerText = "Generating clean code...";
         resultArea.style.display = "block";
         dlBtn.style.display = "none";
         copyBtn.style.display = "none";
         
         try {
-            const prompt = `You are a Senior Developer. Review this code.
+            // This prompt forces AI to output ONLY code
+            const prompt = `You are a strict code repairing machine.
             
-            CODE:
-            ${inputCode.substring(0, 30000)}
+            YOUR TASK:
+            Fix all errors (security, logic, syntax) in the code below.
             
-            OUTPUT FORMAT:
-            1. 🔴 Critical Issues (Security/Bugs)
-            2. 🟢 Corrected Code Snippets (Ready to copy)
-            3. 💡 Suggestions
-            `;
+            RULES:
+            1. Output ONLY the fixed code.
+            2. Do NOT write any explanations, comments, or intro text.
+            3. Do NOT use markdown code blocks (like \`\`\`). Just raw code.
+            4. If there are multiple files, keep the separator comments.
+            
+            CODE TO FIX:
+            ${inputCode.substring(0, 40000)}`;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
@@ -178,30 +182,29 @@
 
             outputText.innerText = text;
             
-            // Show Download & Copy Buttons after success
             dlBtn.style.display = "block";
             copyBtn.style.display = "block";
-            btn.innerText = "Analyze Again";
+            btn.innerText = "Fix Again";
         } catch (error) {
             outputText.innerText = "Error: " + error.toString();
             btn.innerText = "Retry";
         }
     }
 
-    // --- 3. DOWNLOAD & COPY FUNCTIONS ---
-    window.downloadReport = function() {
+    // --- 3. DOWNLOAD FUNCTION ---
+    window.downloadCode = function() {
         const text = document.getElementById("outputText").innerText;
         const blob = new Blob([text], { type: "text/plain" });
         const anchor = document.createElement("a");
         anchor.href = URL.createObjectURL(blob);
-        anchor.download = "AI_Fix_Report.txt"; // File name
+        anchor.download = "fixed_script.txt"; // Downloads as text file
         anchor.click();
     }
 
     window.copyToClipboard = function() {
         const text = document.getElementById("outputText").innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert("Report copied to clipboard! Open Spck Editor and paste it.");
+            alert("Code copied!");
         });
     }
 </script>
