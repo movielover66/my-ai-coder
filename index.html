@@ -99,88 +99,48 @@
 </div>
 
 <script type="module">
-    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
     import { API_KEY } from './api.js';
 
-    // File handling logic (No change here)
-    document.getElementById('fileInput').addEventListener('change', async function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const textArea = document.getElementById('codeInput');
-        textArea.value = "Reading file... please wait.";
-        if (file.name.endsWith('.zip')) {
-            try {
-                const zip = new JSZip();
-                const content = await zip.loadAsync(file);
-                let combinedCode = `Project: ${file.name}\n\n`;
-                for (let filename in content.files) {
-                    const zipFile = content.files[filename];
-                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4|eot|ttf|woff)$/i)) {
-                        const fileText = await zipFile.async("string");
-                        combinedCode += `--- FILE: ${filename} ---\n${fileText}\n\n`;
-                    }
-                }
-                textArea.value = combinedCode;
-            } catch (e) { alert("Error reading ZIP: " + e.message); }
-        } else {
-            const reader = new FileReader();
-            reader.onload = function(e) { textArea.value = e.target.result; };
-            reader.readAsText(file);
-        }
-    });
-
-    // --- NEW AI LOGIC WITH AUTO-MODEL DETECTION ---
-    const genAI = new GoogleGenerativeAI(API_KEY);
-
     window.fixCode = async function() {
-        const inputCode = document.getElementById("codeInput").value;
         const resultArea = document.getElementById("resultArea");
         const outputText = document.getElementById("outputText");
         const btn = document.querySelector("button");
 
-        if(!inputCode) {
-            alert("Code box is empty!");
-            return;
-        }
-
-        btn.innerText = "Searching for working model...";
-        outputText.innerText = "Analyzing project...";
+        btn.innerText = "Checking API Status...";
         resultArea.style.display = "block";
-        
-        // List of models to try one by one
-        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"];
-        let success = false;
+        outputText.innerText = "Connecting to Google Servers to find available models...\n";
 
-        for (const modelName of modelsToTry) {
-            try {
-                console.log("Trying model:", modelName);
-                const model = genAI.getGenerativeModel({ model: modelName });
-                
-                const prompt = `You are an expert Developer. 
-                Review this code. Identify critical errors and provide fixes.
-                
-                CODE:
-                ${inputCode.substring(0, 30000)} 
-                (Note: Only first 30k chars sent to avoid limit)`;
+        try {
+            // ১. সরাসরি Google-এর সার্ভার থেকে মডেল লিস্ট আনা
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+            const data = await response.json();
 
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const text = response.text();
-
-                // If successful:
-                outputText.innerText = "✅ Analysis by (" + modelName + "):\n\n" + text;
-                success = true;
-                btn.innerText = "Analyze Again";
-                break; // Stop loop if it works
-            } catch (error) {
-                console.warn(`Failed with ${modelName}:`, error);
-                // Continue to next model
+            if (data.error) {
+                outputText.innerText += "\n❌ API Error: " + JSON.stringify(data.error, null, 2);
+                return;
             }
-        }
 
-        if (!success) {
-            outputText.innerText = "❌ All models failed. Please check if 'Generative Language API' is enabled in Google Cloud Console.";
-            btn.innerText = "Retry Analysis";
+            // ২. লিস্ট দেখানো
+            if (data.models) {
+                outputText.innerText += "\n✅ SUCCESS! Your API is working.\n\nAvailable Models for you:";
+                
+                // মডেলগুলোর নাম স্ক্রিনে প্রিন্ট করা
+                data.models.forEach(model => {
+                    // শুধু জেমিনি মডেলগুলো দেখাব
+                    if(model.name.includes("gemini")) {
+                        outputText.innerText += "\n👉 " + model.name.replace("models/", "");
+                    }
+                });
+
+                outputText.innerText += "\n\n(এখন আমরা এই নামগুলোর একটি ব্যবহার করে কোডটি ঠিক করব। এই লিস্টের একটি স্ক্রিনশট আমাকে দিন।)";
+            } else {
+                outputText.innerText += "\n⚠️ No models found in this project.";
+            }
+
+        } catch (error) {
+            outputText.innerText += "\n❌ Network Error: " + error.toString();
         }
+        
+        btn.innerText = "Check Complete";
     }
 </script>
