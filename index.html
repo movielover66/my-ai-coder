@@ -102,49 +102,36 @@
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
     import { API_KEY } from './api.js';
 
-    // Model Change: Using 'gemini-pro' as it is more stable for code
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-    // --- FILE HANDLING LOGIC ---
+    // File handling logic (No change here)
     document.getElementById('fileInput').addEventListener('change', async function(event) {
         const file = event.target.files[0];
         if (!file) return;
-
         const textArea = document.getElementById('codeInput');
         textArea.value = "Reading file... please wait.";
-
         if (file.name.endsWith('.zip')) {
-            // Handle ZIP Files
             try {
                 const zip = new JSZip();
                 const content = await zip.loadAsync(file);
                 let combinedCode = `Project: ${file.name}\n\n`;
-
-                // Loop through files in zip
                 for (let filename in content.files) {
                     const zipFile = content.files[filename];
-                    // Skip folders and non-code files (images etc)
-                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4)$/i)) {
+                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4|eot|ttf|woff)$/i)) {
                         const fileText = await zipFile.async("string");
                         combinedCode += `--- FILE: ${filename} ---\n${fileText}\n\n`;
                     }
                 }
                 textArea.value = combinedCode;
-            } catch (e) {
-                alert("Error reading ZIP: " + e.message);
-            }
+            } catch (e) { alert("Error reading ZIP: " + e.message); }
         } else {
-            // Handle Single Code Files
             const reader = new FileReader();
-            reader.onload = function(e) {
-                textArea.value = e.target.result;
-            };
+            reader.onload = function(e) { textArea.value = e.target.result; };
             reader.readAsText(file);
         }
     });
 
-    // --- AI ANALYSIS LOGIC ---
+    // --- NEW AI LOGIC WITH AUTO-MODEL DETECTION ---
+    const genAI = new GoogleGenerativeAI(API_KEY);
+
     window.fixCode = async function() {
         const inputCode = document.getElementById("codeInput").value;
         const resultArea = document.getElementById("resultArea");
@@ -152,40 +139,48 @@
         const btn = document.querySelector("button");
 
         if(!inputCode) {
-            alert("Code box is empty! Upload a file or write code.");
+            alert("Code box is empty!");
             return;
         }
 
-        btn.innerText = "Analyzing Project...";
-        outputText.innerText = "Thinking...";
+        btn.innerText = "Searching for working model...";
+        outputText.innerText = "Analyzing project...";
         resultArea.style.display = "block";
         
-        try {
-            const prompt = `You are an expert Lead Developer. 
-            Review the following code/project files.
-            
-            CODE CONTENT:
-            ${inputCode}
-            
-            YOUR TASK:
-            1. Identify any critical errors or bugs.
-            2. Suggest improvements for better performance or clean code.
-            3. Provide corrected snippets for the most important parts.
-            
-            Keep the response structured and easy to read.`;
+        // List of models to try one by one
+        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"];
+        let success = false;
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+        for (const modelName of modelsToTry) {
+            try {
+                console.log("Trying model:", modelName);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                
+                const prompt = `You are an expert Developer. 
+                Review this code. Identify critical errors and provide fixes.
+                
+                CODE:
+                ${inputCode.substring(0, 30000)} 
+                (Note: Only first 30k chars sent to avoid limit)`;
 
-            outputText.innerText = text;
-        } catch (error) {
-            outputText.innerText = "Error: " + error.toString();
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const text = response.text();
+
+                // If successful:
+                outputText.innerText = "✅ Analysis by (" + modelName + "):\n\n" + text;
+                success = true;
+                btn.innerText = "Analyze Again";
+                break; // Stop loop if it works
+            } catch (error) {
+                console.warn(`Failed with ${modelName}:`, error);
+                // Continue to next model
+            }
         }
-        
-        btn.innerText = "Analyze & Fix Code";
+
+        if (!success) {
+            outputText.innerText = "❌ All models failed. Please check if 'Generative Language API' is enabled in Google Cloud Console.";
+            btn.innerText = "Retry Analysis";
+        }
     }
 </script>
-
-</body>
-</html>
