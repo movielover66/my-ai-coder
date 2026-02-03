@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Fixer</title>
+    <title>AI Code Fixer & Reviewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
     <style>
         body {
             font-family: 'Courier New', monospace;
@@ -13,18 +15,39 @@
             margin: 0;
         }
         h2 { color: #61dafb; text-align: center; }
-        .container { max-width: 600px; margin: 0 auto; }
+        .container { max-width: 800px; margin: 0 auto; }
         
+        /* File Upload Box Styling */
+        .file-upload-wrapper {
+            background-color: #2d2d2d;
+            border: 2px dashed #3e3e3e;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        .file-upload-wrapper:hover { border-color: #61dafb; }
+        input[type="file"] { display: none; }
+        .custom-file-upload {
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            color: #61dafb;
+            font-weight: bold;
+        }
+
         textarea {
             width: 100%;
-            height: 150px;
-            background-color: #2d2d2d;
+            height: 200px;
+            background-color: #252526;
             color: #fff;
             border: 1px solid #3e3e3e;
             padding: 10px;
             border-radius: 5px;
             font-family: monospace;
             font-size: 14px;
+            box-sizing: border-box; /* Fixes width overflow */
         }
         
         button {
@@ -48,36 +71,80 @@
             border-left: 5px solid #61dafb;
             display: none;
         }
-        .label { font-weight: bold; color: #ce9178; display: block; margin-bottom: 5px; }
         pre { white-space: pre-wrap; margin: 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🛠️ AI Code Fixer</h2>
-    <p>Apnar Script niche paste korun:</p>
-    <textarea id="codeInput" placeholder="Example: var x = 10 console.log(x"></textarea>
+    <h2>🛠️ AI Code Project Reviewer</h2>
     
-    <button onclick="fixCode()">Check & Fix Code</button>
+    <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
+        <label for="fileInput" class="custom-file-upload">
+            📂 Click to Upload File or ZIP
+        </label>
+        <div style="font-size: 12px; color: #888;">Supports: .zip, .js, .py, .html, .css</div>
+        <input type="file" id="fileInput" accept=".zip,.js,.py,.html,.css,.txt,.json">
+    </div>
+
+    <p>Code Preview (AI will read this):</p>
+    <textarea id="codeInput" placeholder="Upload a file or paste code here..."></textarea>
+    
+    <button onclick="fixCode()">Analyze & Fix Code</button>
 
     <div id="resultArea" class="output-box">
-        <span class="label">🔎 Analysis & Fix:</span>
+        <span style="font-weight:bold; color:#ce9178">🔎 Analysis Result:</span>
         <pre id="outputText">Waiting for AI...</pre>
     </div>
 </div>
 
 <script type="module">
-    // 1. Google AI Library Import
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
-    
-    // 2. Apnar api.js file theke Key Import kora hochhe
     import { API_KEY } from './api.js';
 
-    // 3. AI Setup
+    // Model Change: Using 'gemini-pro' as it is more stable for code
     const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // 4. Main Function (Window object-e add kora holo jate Button kaj kore)
+    // --- FILE HANDLING LOGIC ---
+    document.getElementById('fileInput').addEventListener('change', async function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const textArea = document.getElementById('codeInput');
+        textArea.value = "Reading file... please wait.";
+
+        if (file.name.endsWith('.zip')) {
+            // Handle ZIP Files
+            try {
+                const zip = new JSZip();
+                const content = await zip.loadAsync(file);
+                let combinedCode = `Project: ${file.name}\n\n`;
+
+                // Loop through files in zip
+                for (let filename in content.files) {
+                    const zipFile = content.files[filename];
+                    // Skip folders and non-code files (images etc)
+                    if (!zipFile.dir && !filename.match(/\.(jpg|png|gif|mp4)$/i)) {
+                        const fileText = await zipFile.async("string");
+                        combinedCode += `--- FILE: ${filename} ---\n${fileText}\n\n`;
+                    }
+                }
+                textArea.value = combinedCode;
+            } catch (e) {
+                alert("Error reading ZIP: " + e.message);
+            }
+        } else {
+            // Handle Single Code Files
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                textArea.value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    // --- AI ANALYSIS LOGIC ---
     window.fixCode = async function() {
         const inputCode = document.getElementById("codeInput").value;
         const resultArea = document.getElementById("resultArea");
@@ -85,26 +152,27 @@
         const btn = document.querySelector("button");
 
         if(!inputCode) {
-            alert("Doya kore kichu code likhun!");
+            alert("Code box is empty! Upload a file or write code.");
             return;
         }
 
-        btn.innerText = "Checking...";
-        outputText.innerText = "Analyzing code...";
+        btn.innerText = "Analyzing Project...";
+        outputText.innerText = "Thinking...";
         resultArea.style.display = "block";
         
         try {
-            // Model Setup
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const prompt = `You are an expert Lead Developer. 
+            Review the following code/project files.
             
-            const prompt = `You are a helpful coding assistant. 
-            Review this code:
-            "${inputCode}"
+            CODE CONTENT:
+            ${inputCode}
             
-            1. Find the error.
-            2. Explain the error briefly.
-            3. Provide the corrected code.
-            `;
+            YOUR TASK:
+            1. Identify any critical errors or bugs.
+            2. Suggest improvements for better performance or clean code.
+            3. Provide corrected snippets for the most important parts.
+            
+            Keep the response structured and easy to read.`;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
@@ -112,12 +180,10 @@
 
             outputText.innerText = text;
         } catch (error) {
-            // Error Handling
             outputText.innerText = "Error: " + error.toString();
-            console.error("Full Error:", error);
         }
         
-        btn.innerText = "Check & Fix Code";
+        btn.innerText = "Analyze & Fix Code";
     }
 </script>
 
