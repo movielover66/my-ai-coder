@@ -3,147 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Full Project Manager</title>
+    <title>AI Smart Editor & Manager</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <style>
-        body {
-            font-family: 'Segoe UI', monospace;
-            background-color: #121212;
-            color: #e0e0e0;
-            padding: 20px;
-            margin: 0;
-        }
+        body { font-family: 'Segoe UI', monospace; background-color: #121212; color: #e0e0e0; padding: 20px; }
         h2 { color: #00ff88; text-align: center; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 950px; margin: 0 auto; }
 
-        /* Upload Area */
+        /* Upload Zone */
         .upload-zone {
-            border: 2px dashed #444;
-            padding: 30px;
-            text-align: center;
-            background: #1e1e1e;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-bottom: 20px;
+            border: 2px dashed #444; padding: 30px; text-align: center;
+            background: #1e1e1e; border-radius: 10px; cursor: pointer; margin-bottom: 20px;
         }
         .upload-zone:hover { border-color: #00ff88; background: #252526; }
-        .upload-zone p { margin: 0; color: #888; }
-        
-        /* File List Styles */
-        .file-item {
-            background: #1e1e1e;
-            border: 1px solid #333;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        
-        /* File Header Bar */
+
+        /* File List */
+        .file-item { background: #1e1e1e; border: 1px solid #333; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
         .file-header {
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            background: #252526;
-            transition: 0.2s;
+            padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; background: #252526; transition: 0.2s;
         }
         .file-header:hover { background: #2d2d2d; }
+        
+        .file-info { display: flex; align-items: center; gap: 10px; }
         .file-name { color: #00d2ff; font-weight: bold; }
-        .file-badge { font-size: 11px; background: #333; padding: 3px 8px; border-radius: 4px; color: #bbb; }
-
-        /* Smart Merger Area (Hidden by default) */
-        .merger-area {
-            display: none; /* Hidden initially */
-            padding: 15px;
-            background: #151515;
-            border-top: 1px solid #333;
-        }
-        .merger-area.active { display: block; }
-
-        textarea {
-            width: 100%;
-            height: 100px;
-            background: #000;
-            color: #a9ff99;
-            border: 1px solid #333;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            box-sizing: border-box;
-            margin-bottom: 10px;
-        }
+        
+        /* Badges */
+        .badge-dup { background: #ff4d4d; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: none; }
+        .badge-type { background: #444; color: #ccc; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
 
         /* Buttons */
-        .btn-merge {
-            background: linear-gradient(45deg, #00ff88, #008cff);
-            border: none;
-            padding: 10px 20px;
-            color: #000;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
+        .actions button { cursor: pointer; margin-left: 5px; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; }
+        .btn-edit { background: #00d2ff; color: #000; }
+        .btn-del { background: #ff4d4d; color: #fff; }
+        .btn-dl { background: #333; color: #fff; border: 1px solid #555; }
+
+        /* Editor Area */
+        .editor-area { display: none; padding: 15px; background: #151515; border-top: 1px solid #333; }
+        
+        /* Code Viewer */
+        .code-box {
+            width: 100%; height: 200px; background: #0f0f0f; color: #a9ff99;
+            border: 1px solid #333; padding: 10px; border-radius: 5px;
+            font-family: 'Courier New', monospace; font-size: 13px; margin-bottom: 10px;
+            resize: vertical;
         }
-        .btn-download-single {
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-size: 12px;
-            border-radius: 3px;
-            margin-left: 10px;
+        
+        /* AI Input */
+        .ai-input {
+            width: 100%; height: 60px; background: #222; color: #fff;
+            border: 1px solid #444; padding: 10px; border-radius: 5px; margin-bottom: 10px;
         }
-        .actions { display: flex; align-items: center; }
+        
+        .btn-ai {
+            width: 100%; padding: 10px; background: linear-gradient(45deg, #00ff88, #008cff);
+            border: none; color: #000; font-weight: bold; cursor: pointer; border-radius: 5px;
+        }
+        .loading { color: #ffff00; margin-top: 5px; display: none; font-size: 12px; }
 
         /* Global Actions */
-        .global-actions { text-align: right; margin-bottom: 20px; }
-        .btn-download-all {
-            background: #ffc107;
-            border: none;
-            padding: 10px 20px;
-            color: #000;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-
-        /* Loading Animation */
-        .loading { color: #ffff00; font-size: 12px; margin-top: 5px; display: none; }
+        .global-actions { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .btn-main { background: #ffc107; color: #000; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📂 AI Project Manager & Zip Handler</h2>
-    
+    <h2>⚡ AI Smart Code Manager</h2>
+
     <div class="global-actions">
-        <button onclick="downloadAllAsZip()" class="btn-download-all" id="dlAllBtn" style="display:none;">📦 Download Full Updated Zip</button>
+        <button onclick="document.getElementById('zipInput').click()" class="btn-main" style="background:#444; color:white">📂 Upload New Zip</button>
+        <button onclick="downloadAll()" class="btn-main" id="dlAllBtn" style="display:none;">📦 Download Full Project</button>
     </div>
 
-    <div class="upload-zone" onclick="document.getElementById('zipInput').click()">
-        <p>📂 Drag & Drop your <b>ZIP File</b> here or Click to Upload</p>
-        <input type="file" id="zipInput" accept=".zip" style="display:none">
-    </div>
-
+    <input type="file" id="zipInput" accept=".zip" style="display:none">
+    
     <div id="fileContainer"></div>
 </div>
 
 <script type="module">
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
-    // আপনার api.js ফাইলটি আগের মতোই থাকতে হবে
     import { API_KEY } from './api.js';
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    let projectFiles = {}; // Stores all file contents { "index.html": "code...", "style.css": "code..." }
+    let projectFiles = {}; 
 
-    // 1. Handle Zip Upload
+    // Handle Zip Upload
     document.getElementById('zipInput').addEventListener('change', async function(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -151,153 +100,171 @@
         const zip = new JSZip();
         const content = await zip.loadAsync(file);
         
-        projectFiles = {}; // Reset
-        document.getElementById('fileContainer').innerHTML = ""; // Clear UI
+        projectFiles = {}; 
+        document.getElementById('fileContainer').innerHTML = ""; 
 
-        // Process each file in the zip
+        // Load files
         for (let filename in content.files) {
             const fileData = content.files[filename];
-            
-            // Skip folders and macOS hidden files
-            if (!fileData.dir && !filename.includes("__MACOSX") && !filename.includes(".DS_Store")) {
-                // Determine if text based
-                if(filename.match(/\.(html|css|js|json|txt|py|php|md)$/i)) {
-                    const text = await fileData.async("string");
-                    projectFiles[filename] = text;
-                    createFileBar(filename);
+            if (!fileData.dir && !filename.includes("__MACOSX")) {
+                if(filename.match(/\.(html|css|js|json|txt|php|py)$/i)) {
+                    projectFiles[filename] = await fileData.async("string");
                 }
             }
         }
-        document.getElementById('dlAllBtn').style.display = 'inline-block';
+        renderFiles();
+        document.getElementById('dlAllBtn').style.display = 'block';
     });
 
-    // 2. Create UI for each file (Accordion Style)
-    function createFileBar(filename) {
+    // Render Files & Detect Duplicates
+    function renderFiles() {
         const container = document.getElementById('fileContainer');
+        container.innerHTML = "";
         
+        // Duplicate Logic: Store content hashes to find duplicates
+        let contentMap = {};
+
+        for (let filename in projectFiles) {
+            const content = projectFiles[filename];
+            let isDuplicate = false;
+
+            // Check duplicate by content OR by name pattern (e.g., "index (1).html")
+            if (contentMap[content] || filename.match(/\(\d+\)/)) {
+                isDuplicate = true;
+            } else {
+                contentMap[content] = true;
+            }
+
+            createFileRow(filename, isDuplicate);
+        }
+    }
+
+    function createFileRow(filename, isDuplicate) {
+        const id = cleanID(filename);
         const div = document.createElement('div');
         div.className = 'file-item';
+        div.id = `row-${id}`;
+
         div.innerHTML = `
-            <div class="file-header" onclick="toggleMerger('${filename}')">
-                <span class="file-name">📄 ${filename}</span>
+            <div class="file-header">
+                <div class="file-info" onclick="toggleEditor('${filename}')">
+                    <span class="file-name">${filename}</span>
+                    <span class="badge-type">${filename.split('.').pop().toUpperCase()}</span>
+                    ${isDuplicate ? '<span class="badge-dup" style="display:inline-block">⚠️ DUPLICATE</span>' : ''}
+                </div>
                 <div class="actions">
-                    <span class="file-badge">Edit</span>
-                    <button class="btn-download-single" onclick="downloadSingleFile('${filename}', event)">⬇️</button>
+                    <button class="btn-edit" onclick="toggleEditor('${filename}')">✏️ Edit</button>
+                    <button class="btn-dl" onclick="downloadSingle('${filename}')">⬇️</button>
+                    <button class="btn-del" onclick="deleteFile('${filename}')">🗑️</button>
                 </div>
             </div>
-            <div class="merger-area" id="area-${cleanID(filename)}">
-                <p style="margin:0 0 5px 0; color:#888; font-size:12px;">Explain what to change in <b>${filename}</b>:</p>
-                <textarea id="prompt-${cleanID(filename)}" placeholder="E.g., 'Add a dark mode toggle in the nav bar' or paste new code..."></textarea>
-                <button class="btn-merge" onclick="processMerge('${filename}')" id="btn-${cleanID(filename)}">⚡ AI Merge / Update This File</button>
-                <div class="loading" id="load-${cleanID(filename)}">🤖 AI is working on ${filename}...</div>
+            
+            <div class="editor-area" id="editor-${id}">
+                <small style="color:#888;">Current Code:</small>
+                <textarea class="code-box" id="code-${id}">${projectFiles[filename]}</textarea>
+                
+                <div style="margin-top:10px;">
+                    <small style="color:#00d2ff;">AI Instruction:</small>
+                    <input type="text" class="ai-input" id="prompt-${id}" placeholder="E.g., 'Delete this file if duplicate' or 'Fix the navbar function'...">
+                    <button class="btn-ai" id="btn-${id}" onclick="processAI('${filename}')">🤖 Apply Changes</button>
+                    <div class="loading" id="load-${id}">Processing...</div>
+                </div>
             </div>
         `;
-        container.appendChild(div);
+        document.getElementById('fileContainer').appendChild(div);
     }
 
-    // Helper to make IDs safe (remove dots/slashes)
-    function cleanID(name) {
-        return name.replace(/[^a-zA-Z0-9]/g, '_');
-    }
-
-    // Toggle Accordion
-    window.toggleMerger = function(filename) {
+    // Toggle Editor View
+    window.toggleEditor = function(filename) {
         const id = cleanID(filename);
-        const area = document.getElementById(`area-${id}`);
-        // Close others (Optional - remove this loop if you want multiple open)
-        document.querySelectorAll('.merger-area').forEach(el => el.style.display = 'none');
+        const editor = document.getElementById(`editor-${id}`);
+        const codeBox = document.getElementById(`code-${id}`);
         
-        if (area.style.display === 'block') {
-            area.style.display = 'none';
+        // Update code box with latest content before showing
+        codeBox.value = projectFiles[filename];
+        
+        if (editor.style.display === 'block') {
+            editor.style.display = 'none';
         } else {
-            area.style.display = 'block';
+            // Close others (Optional)
+            document.querySelectorAll('.editor-area').forEach(el => el.style.display = 'none');
+            editor.style.display = 'block';
         }
     }
 
-    // 3. AI Merge Logic
-    window.processMerge = async function(filename) {
+    // AI Process Logic
+    window.processAI = async function(filename) {
         const id = cleanID(filename);
-        const userPrompt = document.getElementById(`prompt-${id}`).value;
+        const prompt = document.getElementById(`prompt-${id}`).value;
+        const codeBox = document.getElementById(`code-${id}`); // Get manually edited code too
+        
+        if(!prompt) {
+            // If no AI prompt, just save manual edits
+            projectFiles[filename] = codeBox.value;
+            alert("Manual Changes Saved!");
+            return;
+        }
+
         const btn = document.getElementById(`btn-${id}`);
-        const loadMsg = document.getElementById(`load-${id}`);
+        const loader = document.getElementById(`load-${id}`);
         
-        if (!userPrompt) return alert("Please type an instruction!");
-
-        // UI Loading State
         btn.disabled = true;
-        btn.style.opacity = "0.5";
-        loadMsg.style.display = "block";
+        loader.style.display = 'block';
 
-        const currentCode = projectFiles[filename];
-
-        const fullPrompt = `
-        You are an expert Full Stack Developer.
-        TARGET FILE: ${filename}
-        
-        CURRENT CODE:
-        ${currentCode}
-        
-        USER INSTRUCTION / SNIPPET:
-        ${userPrompt}
-        
-        TASK:
-        Update the code based strictly on the user instruction.
-        - If it's a replacement, replace carefully.
-        - If it's an addition, place it in the logical position.
-        - Return ONLY the raw code. No markdown formatting (\`\`\`).
-        `;
+        // Check if user wants to delete via AI
+        if (prompt.toLowerCase().includes("delete") || prompt.toLowerCase().includes("remove file")) {
+            deleteFile(filename);
+            return;
+        }
 
         try {
-            const result = await model.generateContent(fullPrompt);
+            const aiPrompt = `
+            ACT: Expert Coder.
+            FILE: ${filename}
+            CODE: ${codeBox.value}
+            INSTRUCTION: ${prompt}
+            OUTPUT: Only the raw code. No markdown.
+            `;
+            
+            const result = await model.generateContent(aiPrompt);
             const response = await result.response;
-            let newCode = response.text();
+            const newCode = response.text().replace(/```(html|css|js|javascript)?/g, "").replace(/```/g, "").trim();
             
-            // Clean markdown
-            newCode = newCode.replace(/```(html|css|javascript|js|json)?/g, "").replace(/```/g, "").trim();
-
-            // Update State
             projectFiles[filename] = newCode;
-
-            // UI Feedback
-            loadMsg.innerText = "✅ Updated Successfully!";
-            loadMsg.style.color = "#00ff88";
-            btn.innerText = "Updated! Merge Again?";
+            codeBox.value = newCode; // Update viewer
             
-            // Flash effect
-            document.getElementById(`area-${id}`).style.border = "1px solid #00ff88";
-
+            loader.innerText = "✅ Done!";
+            setTimeout(() => { loader.style.display = 'none'; btn.disabled = false; }, 2000);
+            
         } catch (error) {
-            console.error(error);
-            loadMsg.innerText = "Error: " + error.message;
-        } finally {
+            alert("Error: " + error.message);
             btn.disabled = false;
-            btn.style.opacity = "1";
         }
     }
 
-    // 4. Download Functions
-    
-    // Download Single File
-    window.downloadSingleFile = function(filename, event) {
-        event.stopPropagation(); // Stop accordion from opening
-        const content = projectFiles[filename];
-        const blob = new Blob([content], { type: "text/plain" });
-        saveAs(blob, filename); // Using FileSaver.js
+    // Delete Function
+    window.deleteFile = function(filename) {
+        if(confirm(`Delete ${filename}?`)) {
+            delete projectFiles[filename];
+            document.getElementById(`row-${cleanID(filename)}`).remove();
+        }
     }
 
-    // Download All as New Zip
-    window.downloadAllAsZip = function() {
+    // Download Single
+    window.downloadSingle = function(filename) {
+        saveAs(new Blob([projectFiles[filename]], {type: "text/plain"}), filename);
+    }
+
+    // Download All
+    window.downloadAll = function() {
         const zip = new JSZip();
-        
-        for (let filename in projectFiles) {
-            zip.file(filename, projectFiles[filename]);
+        for(let f in projectFiles) {
+            zip.file(f, projectFiles[f]);
         }
-
-        zip.generateAsync({type:"blob"}).then(function(content) {
-            saveAs(content, "updated_project.zip");
-        });
+        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "Updated_Project.zip"));
     }
 
+    function cleanID(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
 </script>
 
 </body>
