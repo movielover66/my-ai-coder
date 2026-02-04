@@ -3,193 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Smart Code Merger</title>
+    <title>AI Full Project Manager</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <style>
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #0f0f0f;
+            font-family: 'Segoe UI', monospace;
+            background-color: #121212;
             color: #e0e0e0;
             padding: 20px;
             margin: 0;
         }
-        h2 { color: #00ff88; text-align: center; margin-bottom: 5px; }
-        p { text-align: center; color: #888; font-size: 12px; margin-bottom: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        
-        /* Sections */
-        .box {
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .label { color: #00d2ff; font-weight: bold; font-size: 14px; display: block; margin-bottom: 8px; }
-        
-        /* File Upload */
-        input[type="file"] {
-            background: #252526;
-            color: #fff;
-            padding: 10px;
-            width: 100%;
-            border-radius: 5px;
-            border: 1px dashed #555;
-            box-sizing: border-box;
-        }
+        h2 { color: #00ff88; text-align: center; }
+        .container { max-width: 900px; margin: 0 auto; }
 
-        /* Text Area for New Code */
+        /* Upload Area */
+        .upload-zone {
+            border: 2px dashed #444;
+            padding: 30px;
+            text-align: center;
+            background: #1e1e1e;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 20px;
+        }
+        .upload-zone:hover { border-color: #00ff88; background: #252526; }
+        .upload-zone p { margin: 0; color: #888; }
+        
+        /* File List Styles */
+        .file-item {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        /* File Header Bar */
+        .file-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #252526;
+            transition: 0.2s;
+        }
+        .file-header:hover { background: #2d2d2d; }
+        .file-name { color: #00d2ff; font-weight: bold; }
+        .file-badge { font-size: 11px; background: #333; padding: 3px 8px; border-radius: 4px; color: #bbb; }
+
+        /* Smart Merger Area (Hidden by default) */
+        .merger-area {
+            display: none; /* Hidden initially */
+            padding: 15px;
+            background: #151515;
+            border-top: 1px solid #333;
+        }
+        .merger-area.active { display: block; }
+
         textarea {
             width: 100%;
-            height: 120px;
-            background-color: #252526;
-            color: #a9ff99; /* Greenish for new code */
+            height: 100px;
+            background: #000;
+            color: #a9ff99;
             border: 1px solid #333;
             padding: 10px;
             border-radius: 5px;
             font-family: monospace;
-            font-size: 13px;
-            box-sizing: border-box; 
+            box-sizing: border-box;
+            margin-bottom: 10px;
         }
-        
-        /* Merge Button */
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            color: #000;
-            background: linear-gradient(45deg, #00ff88, #00d2ff);
-            transition: 0.3s;
-        }
-        button:hover { opacity: 0.9; transform: scale(0.99); }
-        button:disabled { background: #555; color: #888; cursor: not-allowed; }
 
-        /* Output Section */
-        .output-area { display: none; margin-top: 20px; }
-        .download-btn {
-            background: #ffc107;
+        /* Buttons */
+        .btn-merge {
+            background: linear-gradient(45deg, #00ff88, #008cff);
+            border: none;
+            padding: 10px 20px;
             color: #000;
-            margin-top: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
         }
+        .btn-download-single {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 3px;
+            margin-left: 10px;
+        }
+        .actions { display: flex; align-items: center; }
+
+        /* Global Actions */
+        .global-actions { text-align: right; margin-bottom: 20px; }
+        .btn-download-all {
+            background: #ffc107;
+            border: none;
+            padding: 10px 20px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        /* Loading Animation */
+        .loading { color: #ffff00; font-size: 12px; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>⚡ AI Smart Code Merger</h2>
-    <p>Upload old file + Paste new part = Full Updated File</p>
+    <h2>📂 AI Project Manager & Zip Handler</h2>
     
-    <div class="box">
-        <span class="label">Step 1: Upload Main File (script.js / index.html)</span>
-        <input type="file" id="mainFile" accept=".js,.html,.css,.txt">
+    <div class="global-actions">
+        <button onclick="downloadAllAsZip()" class="btn-download-all" id="dlAllBtn" style="display:none;">📦 Download Full Updated Zip</button>
     </div>
 
-    <div class="box">
-        <span class="label">Step 2: Paste New Code / Instruction</span>
-        <textarea id="newSnippet" placeholder="Example: 'Add this startDeepScan function at the bottom' or paste the code directly..."></textarea>
+    <div class="upload-zone" onclick="document.getElementById('zipInput').click()">
+        <p>📂 Drag & Drop your <b>ZIP File</b> here or Click to Upload</p>
+        <input type="file" id="zipInput" accept=".zip" style="display:none">
     </div>
-    
-    <button onclick="mergeCode()" id="mergeBtn">🔄 MERGE & UPDATE FILE</button>
 
-    <div id="resultArea" class="output-area">
-        <div class="box" style="border-color: #00ff88;">
-            <span class="label">✅ Merge Successful!</span>
-            <pre id="statusText" style="white-space: pre-wrap; color: #ccc; font-size: 12px;">Processing...</pre>
-            <button onclick="downloadFixedFile()" class="download-btn">⬇️ Download Updated File</button>
-        </div>
-    </div>
+    <div id="fileContainer"></div>
 </div>
 
 <script type="module">
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+    // আপনার api.js ফাইলটি আগের মতোই থাকতে হবে
     import { API_KEY } from './api.js';
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    let mainFileContent = "";
-    let fileName = "updated_script.js";
+    let projectFiles = {}; // Stores all file contents { "index.html": "code...", "style.css": "code..." }
 
-    // Read Uploaded File
-    document.getElementById('mainFile').addEventListener('change', function(event) {
+    // 1. Handle Zip Upload
+    document.getElementById('zipInput').addEventListener('change', async function(event) {
         const file = event.target.files[0];
         if (!file) return;
-        fileName = "updated_" + file.name;
+
+        const zip = new JSZip();
+        const content = await zip.loadAsync(file);
         
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            mainFileContent = e.target.result;
-            document.getElementById('statusText').innerText = `Loaded: ${file.name} (${mainFileContent.length} chars)`;
-        };
-        reader.readAsText(file);
+        projectFiles = {}; // Reset
+        document.getElementById('fileContainer').innerHTML = ""; // Clear UI
+
+        // Process each file in the zip
+        for (let filename in content.files) {
+            const fileData = content.files[filename];
+            
+            // Skip folders and macOS hidden files
+            if (!fileData.dir && !filename.includes("__MACOSX") && !filename.includes(".DS_Store")) {
+                // Determine if text based
+                if(filename.match(/\.(html|css|js|json|txt|py|php|md)$/i)) {
+                    const text = await fileData.async("string");
+                    projectFiles[filename] = text;
+                    createFileBar(filename);
+                }
+            }
+        }
+        document.getElementById('dlAllBtn').style.display = 'inline-block';
     });
 
-    // AI Merge Logic
-    window.mergeCode = async function() {
-        const newSnippet = document.getElementById("newSnippet").value;
-        const statusText = document.getElementById("statusText");
-        const resultArea = document.getElementById("resultArea");
-        const btn = document.getElementById("mergeBtn");
-
-        if(!mainFileContent) { alert("Please upload the main file first!"); return; }
-        if(!newSnippet) { alert("Please paste the new code or instruction!"); return; }
-
-        btn.innerText = "Merging... (Please Wait)";
-        btn.disabled = true;
-        resultArea.style.display = "block";
-        statusText.innerText = "AI is finding the best place to insert your code...";
+    // 2. Create UI for each file (Accordion Style)
+    function createFileBar(filename) {
+        const container = document.getElementById('fileContainer');
         
-        try {
-            const prompt = `You are an expert Code Integrator.
-            
-            TASK:
-            I have a MAIN FILE and a NEW SNIPPET (or instruction).
-            Your job is to intelligently merge the NEW SNIPPET into the MAIN FILE.
-            
-            RULES:
-            1. If the new snippet is a function, place it correctly (e.g., at the end or inside a specific class).
-            2. If it's a replacement (e.g., "fix button"), find the old code and replace it.
-            3. If it's HTML, put it in the correct tag structure.
-            4. Output ONLY the FULL, MERGED, READY-TO-USE CODE. No markdown, no text.
-            
-            --- MAIN FILE START ---
-            ${mainFileContent}
-            --- MAIN FILE END ---
-            
-            --- NEW SNIPPET / INSTRUCTION START ---
-            ${newSnippet}
-            --- NEW SNIPPET / INSTRUCTION END ---
-            `;
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+            <div class="file-header" onclick="toggleMerger('${filename}')">
+                <span class="file-name">📄 ${filename}</span>
+                <div class="actions">
+                    <span class="file-badge">Edit</span>
+                    <button class="btn-download-single" onclick="downloadSingleFile('${filename}', event)">⬇️</button>
+                </div>
+            </div>
+            <div class="merger-area" id="area-${cleanID(filename)}">
+                <p style="margin:0 0 5px 0; color:#888; font-size:12px;">Explain what to change in <b>${filename}</b>:</p>
+                <textarea id="prompt-${cleanID(filename)}" placeholder="E.g., 'Add a dark mode toggle in the nav bar' or paste new code..."></textarea>
+                <button class="btn-merge" onclick="processMerge('${filename}')" id="btn-${cleanID(filename)}">⚡ AI Merge / Update This File</button>
+                <div class="loading" id="load-${cleanID(filename)}">🤖 AI is working on ${filename}...</div>
+            </div>
+        `;
+        container.appendChild(div);
+    }
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+    // Helper to make IDs safe (remove dots/slashes)
+    function cleanID(name) {
+        return name.replace(/[^a-zA-Z0-9]/g, '_');
+    }
 
-            // Save result globally for download
-            window.finalCode = text.replace(/```(javascript|html|css)?/g, "").replace(/```/g, "").trim();
-
-            statusText.innerText = "Done! The code has been merged and checked.";
-            btn.innerText = "Merge Again";
-            btn.disabled = false;
-        } catch (error) {
-            statusText.innerText = "Error: " + error.toString();
-            btn.disabled = false;
+    // Toggle Accordion
+    window.toggleMerger = function(filename) {
+        const id = cleanID(filename);
+        const area = document.getElementById(`area-${id}`);
+        // Close others (Optional - remove this loop if you want multiple open)
+        document.querySelectorAll('.merger-area').forEach(el => el.style.display = 'none');
+        
+        if (area.style.display === 'block') {
+            area.style.display = 'none';
+        } else {
+            area.style.display = 'block';
         }
     }
 
-    // Download Function
-    window.downloadFixedFile = function() {
-        if(!window.finalCode) return;
-        const blob = new Blob([window.finalCode], { type: "text/plain" });
-        const anchor = document.createElement("a");
-        anchor.href = URL.createObjectURL(blob);
-        anchor.download = fileName;
-        anchor.click();
+    // 3. AI Merge Logic
+    window.processMerge = async function(filename) {
+        const id = cleanID(filename);
+        const userPrompt = document.getElementById(`prompt-${id}`).value;
+        const btn = document.getElementById(`btn-${id}`);
+        const loadMsg = document.getElementById(`load-${id}`);
+        
+        if (!userPrompt) return alert("Please type an instruction!");
+
+        // UI Loading State
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        loadMsg.style.display = "block";
+
+        const currentCode = projectFiles[filename];
+
+        const fullPrompt = `
+        You are an expert Full Stack Developer.
+        TARGET FILE: ${filename}
+        
+        CURRENT CODE:
+        ${currentCode}
+        
+        USER INSTRUCTION / SNIPPET:
+        ${userPrompt}
+        
+        TASK:
+        Update the code based strictly on the user instruction.
+        - If it's a replacement, replace carefully.
+        - If it's an addition, place it in the logical position.
+        - Return ONLY the raw code. No markdown formatting (\`\`\`).
+        `;
+
+        try {
+            const result = await model.generateContent(fullPrompt);
+            const response = await result.response;
+            let newCode = response.text();
+            
+            // Clean markdown
+            newCode = newCode.replace(/```(html|css|javascript|js|json)?/g, "").replace(/```/g, "").trim();
+
+            // Update State
+            projectFiles[filename] = newCode;
+
+            // UI Feedback
+            loadMsg.innerText = "✅ Updated Successfully!";
+            loadMsg.style.color = "#00ff88";
+            btn.innerText = "Updated! Merge Again?";
+            
+            // Flash effect
+            document.getElementById(`area-${id}`).style.border = "1px solid #00ff88";
+
+        } catch (error) {
+            console.error(error);
+            loadMsg.innerText = "Error: " + error.message;
+        } finally {
+            btn.disabled = false;
+            btn.style.opacity = "1";
+        }
     }
+
+    // 4. Download Functions
+    
+    // Download Single File
+    window.downloadSingleFile = function(filename, event) {
+        event.stopPropagation(); // Stop accordion from opening
+        const content = projectFiles[filename];
+        const blob = new Blob([content], { type: "text/plain" });
+        saveAs(blob, filename); // Using FileSaver.js
+    }
+
+    // Download All as New Zip
+    window.downloadAllAsZip = function() {
+        const zip = new JSZip();
+        
+        for (let filename in projectFiles) {
+            zip.file(filename, projectFiles[filename]);
+        }
+
+        zip.generateAsync({type:"blob"}).then(function(content) {
+            saveAs(content, "updated_project.zip");
+        });
+    }
+
 </script>
 
 </body>
