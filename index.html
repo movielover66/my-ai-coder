@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1e1e1e">
-    <title>AI Code Studio (Secure)</title>
+    <title>AI Code Studio (Pro)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -18,25 +18,28 @@
         header { background: #252526; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; height: 60px; }
         
         .logo-area { display: flex; flex-direction: column; }
-        h3 { margin: 0; color: #007acc; font-size: 16px; }
+        h3 { margin: 0; color: #007acc; font-size: 16px; display: flex; align-items: center; gap: 8px; }
         .status-text { font-size: 10px; color: #666; }
 
         /* API Key Input Area */
-        .api-box { display: flex; gap: 5px; }
+        .api-box { display: flex; gap: 5px; align-items: center; }
         .api-input { 
-            background: #333; border: 1px solid #444; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px; width: 150px;
+            background: #333; border: 1px solid #444; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px; width: 140px;
         }
         .btn-save-key { background: #333; color: #00ff88; border: 1px solid #00ff88; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 
-        .btn-primary { background: #007acc; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 10px; }
+        /* Action Buttons */
+        .btn-group { display: flex; gap: 8px; }
+        .btn-primary { background: #007acc; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .btn-danger { background: #d9453b; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-        
+        .btn-clean { background: #e09100; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; display: none; } /* Initially hidden */
+
         /* Main Layout */
         .workspace { display: flex; height: calc(100vh - 60px); }
         
         /* Sidebar */
         .sidebar { width: 250px; background: #252526; border-right: 1px solid #333; overflow-y: auto; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 10px; font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar-header { padding: 10px; font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
         
         .folder-group { margin-bottom: 5px; }
         .folder-title { padding: 5px 15px; color: #fff; font-size: 12px; font-weight: bold; background: #333; cursor: default; }
@@ -46,7 +49,7 @@
         }
         .file-item:hover { background: #2a2d2e; color: #fff; }
         .file-item.active { background: #37373d; color: #fff; border-left-color: #007acc; }
-        .file-item.duplicate { color: #ff6b6b; }
+        .file-item.duplicate { color: #ff6b6b; text-decoration: line-through; opacity: 0.7; }
         
         .badge { font-size: 9px; padding: 2px 4px; border-radius: 3px; }
         .badge-dup { background: #5a1d1d; color: #ff6b6b; }
@@ -73,6 +76,8 @@
             .sidebar { width: 100%; height: 35%; border-right: none; border-bottom: 1px solid #333; }
             .editor-container { height: 65%; }
             header { height: auto; flex-wrap: wrap; gap: 10px; padding: 10px; }
+            .api-box { width: 100%; justify-content: space-between; margin-bottom: 5px; }
+            .btn-group { width: 100%; justify-content: space-between; }
         }
     </style>
 </head>
@@ -81,16 +86,19 @@
 <header>
     <div class="logo-area">
         <h3>⚡ AI Code Studio</h3>
-        <span class="status-text" id="keyStatus">🔴 No API Key Set</span>
+        <span class="status-text" id="keyStatus">🔴 No API Key</span>
     </div>
     
     <div class="api-box">
-        <input type="password" id="userApiKey" class="api-input" placeholder="Paste Gemini API Key">
+        <input type="password" id="userApiKey" class="api-input" placeholder="Gemini API Key">
         <button class="btn-save-key" onclick="saveKey()">Set Key</button>
     </div>
 
-    <div style="display:flex; gap:5px;">
+    <div class="btn-group">
         <input type="file" id="zipInput" accept=".zip" style="display:none">
+        
+        <button class="btn-clean" id="cleanBtn" onclick="autoCleanProject()">🧹 Auto Clean</button>
+        
         <button class="btn-primary" onclick="document.getElementById('zipInput').click()">📂 ZIP</button>
         <button class="btn-primary" id="dlBtn" onclick="downloadZip()" style="display:none; background:#28a745;">⬇️ Save</button>
     </div>
@@ -98,9 +106,12 @@
 
 <div class="workspace">
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">EXPLORER</div>
+        <div class="sidebar-header">
+            EXPLORER
+            <span id="fileCount" style="font-weight:normal; font-size:9px; background:#444; padding:2px 5px; border-radius:10px;">0 Files</span>
+        </div>
         <div id="fileList">
-            <div style="padding:20px; text-align:center; color:#555;">Open a Zip File</div>
+            <div style="padding:20px; text-align:center; color:#555;">No Project Loaded</div>
         </div>
     </div>
 
@@ -120,7 +131,7 @@
 
         <div class="ai-panel" id="aiPanel">
             <div class="ai-input-group">
-                <input type="text" class="ai-input" id="aiPrompt" placeholder="Write instructions for AI...">
+                <input type="text" class="ai-input" id="aiPrompt" placeholder="Instruction for AI...">
                 <button class="btn-ai" id="aiBtn" onclick="runAI()">✨ Run AI</button>
             </div>
             <div id="aiStatus" style="font-size:11px; color:#00ff88; margin-top:5px; height:15px;"></div>
@@ -145,13 +156,12 @@
             genAI = new GoogleGenerativeAI(key);
             model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             
-            // UI Feedback
-            document.getElementById('keyStatus').innerText = "🟢 System Ready";
+            document.getElementById('keyStatus').innerText = "🟢 Ready";
             document.getElementById('keyStatus').style.color = "#00ff88";
             document.getElementById('userApiKey').style.border = "1px solid #00ff88";
-            alert("API Key Connected Successfully!");
+            alert("API Key Connected!");
         } catch (e) {
-            alert("Error connecting API: " + e.message);
+            alert("Error: " + e.message);
         }
     }
 
@@ -165,43 +175,88 @@
         
         files = {};
         let contentHashes = new Set();
+        let duplicateCount = 0;
 
         for (let name in content.files) {
             const f = content.files[name];
             if (!f.dir && !name.includes("__MACOSX")) {
                 const text = await f.async("string");
                 
-                const hash = text.length + "-" + text.substring(0, 50);
+                // Content Hash for Exact Duplicates
+                const hash = text.length + "-" + text.substring(0, 100).replace(/\s/g, ""); 
+                
                 if (contentHashes.has(hash)) {
                     files[name + " [DUPLICATE]"] = text;
+                    duplicateCount++;
                 } else {
                     contentHashes.add(hash);
                     files[name] = text;
                 }
             }
         }
+        
         renderSidebar();
-        document.getElementById('dlBtn').style.display = 'block';
+        document.getElementById('dlBtn').style.display = 'flex';
+        
+        // Show Clean Button if duplicates exist
+        const cleanBtn = document.getElementById('cleanBtn');
+        if(duplicateCount > 0) {
+            cleanBtn.style.display = 'flex';
+            cleanBtn.innerHTML = `🧹 Auto Clean (${duplicateCount})`;
+        } else {
+            cleanBtn.style.display = 'none';
+        }
     });
 
-    // --- 3. RENDER SIDEBAR ---
+    // --- 3. AUTO CLEAN FUNCTION ---
+    window.autoCleanProject = function() {
+        let deletedCount = 0;
+        const fileKeys = Object.keys(files);
+
+        fileKeys.forEach(key => {
+            // Delete if marked duplicate OR empty content
+            if (key.includes("[DUPLICATE]") || files[key].trim() === "") {
+                delete files[key];
+                deletedCount++;
+            }
+        });
+
+        if (deletedCount > 0) {
+            renderSidebar();
+            // Reset Editor if current file was deleted
+            if (currentFile && !files[currentFile]) {
+                document.getElementById('emptyState').style.display = 'flex';
+                document.getElementById('codeEditor').style.display = 'none';
+                document.getElementById('aiPanel').style.display = 'none';
+                document.getElementById('editorHeader').style.display = 'none';
+                currentFile = null;
+            }
+            
+            alert(`✅ Success! Deleted ${deletedCount} unnecessary files.`);
+            document.getElementById('cleanBtn').style.display = 'none'; // Hide button after clean
+        } else {
+            alert("No junk files found!");
+        }
+    }
+
+    // --- 4. RENDER SIDEBAR ---
     function renderSidebar() {
         const list = document.getElementById('fileList');
         list.innerHTML = "";
         
-        // Custom sort to group files
         const sortedKeys = Object.keys(files).sort();
+        document.getElementById('fileCount').innerText = sortedKeys.length + " Files";
 
         sortedKeys.forEach(fname => {
             const isDup = fname.includes("[DUPLICATE]");
             const item = document.createElement('div');
             item.className = `file-item ${isDup ? 'duplicate' : ''}`;
             
-            // Icon Logic
             let icon = "📄";
             if(fname.includes(".html")) icon = "🌐";
             if(fname.includes(".css")) icon = "🎨";
             if(fname.includes(".js")) icon = "⚙️";
+            if(fname.includes(".json")) icon = "🔧";
 
             item.innerHTML = `
                 <span>${icon} ${fname.replace(" [DUPLICATE]", "")}</span>
@@ -212,7 +267,7 @@
         });
     }
 
-    // --- 4. EDITOR LOGIC ---
+    // --- 5. EDITOR & AI ---
     function openFile(name, element) {
         currentFile = name;
         document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
@@ -227,48 +282,8 @@
         document.getElementById('codeEditor').value = files[name];
     }
 
-    // --- 5. AI UPDATE LOGIC ---
-    window.runAI = async function() {
-        if (!model) return alert("Please set your API Key in the header first!");
-        
-        const prompt = document.getElementById('aiPrompt').value;
-        const btn = document.getElementById('aiBtn');
-        const status = document.getElementById('aiStatus');
-        
-        btn.disabled = true;
-        btn.innerText = "Working...";
-        status.innerText = "🤖 Analyzing code...";
-
-        try {
-            const aiPrompt = `
-            ROLE: Expert Coder.
-            TASK: Update the code based on instruction.
-            FILE: ${currentFile}
-            INSTRUCTION: "${prompt}"
-            CODE:
-            ${files[currentFile]}
-            
-            OUTPUT: ONLY raw code. No markdown.
-            `;
-
-            const result = await model.generateContent(aiPrompt);
-            const response = await result.response;
-            const newCode = response.text().replace(/```(javascript|html|css|json)?/g, "").replace(/```/g, "").trim();
-
-            files[currentFile] = newCode;
-            document.getElementById('codeEditor').value = newCode;
-            status.innerText = "✅ Updated!";
-        } catch (error) {
-            status.innerText = "❌ Error: " + error.message;
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "✨ Run AI";
-        }
-    }
-
-    // --- 6. UTILS ---
     window.deleteCurrentFile = function() {
-        if(confirm("Delete this file?")) {
+        if(confirm("Delete this file permanently?")) {
             delete files[currentFile];
             currentFile = null;
             document.getElementById('emptyState').style.display = 'flex';
@@ -279,12 +294,46 @@
         }
     }
 
+    window.runAI = async function() {
+        if (!model) return alert("Please set your API Key first!");
+        
+        const prompt = document.getElementById('aiPrompt').value;
+        const btn = document.getElementById('aiBtn');
+        const status = document.getElementById('aiStatus');
+        
+        btn.disabled = true;
+        status.innerText = "🤖 Working...";
+
+        try {
+            const aiPrompt = `
+            ROLE: Senior Developer.
+            TASK: Modify code based on request.
+            FILE: ${currentFile}
+            REQ: "${prompt}"
+            CODE: ${files[currentFile]}
+            OUTPUT: Only raw code.
+            `;
+
+            const result = await model.generateContent(aiPrompt);
+            const response = await result.response;
+            const newCode = response.text().replace(/```(javascript|html|css|json)?/g, "").replace(/```/g, "").trim();
+
+            files[currentFile] = newCode;
+            document.getElementById('codeEditor').value = newCode;
+            status.innerText = "✅ Done!";
+        } catch (error) {
+            status.innerText = "❌ Error: " + error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     window.downloadZip = function() {
         const zip = new JSZip();
         Object.keys(files).forEach(name => {
             zip.file(name.replace(" [DUPLICATE]", ""), files[name]);
         });
-        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "Project_Updated.zip"));
+        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "Project_Cleaned.zip"));
     }
 </script>
 
